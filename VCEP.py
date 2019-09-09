@@ -2,14 +2,15 @@
 """
 @name: VOCALOID™ of Chinese Moegirlpedia™ Editor Plus
 @author: Transentropy
-@version: Beta 1.0
+@version: Beta 1.2
 @source: https://github.com/transentropy/VCEP
 """
 
 import json
 import re
 import time
-import requests
+import urllib.request
+import urllib.parse
 from html import unescape
 
 word = '-\u4e00-\u9fa5_.@a-zA-Z0-9\u3040-\u309f\u30a0-\u30fa'
@@ -82,7 +83,7 @@ pageFormat = """
 |image = {title}.jpg
 |图片信息 = 曲绘 by
 |颜色 = 
-|演唱 = {singers}
+|演唱 = {singers1}
 |歌曲名称 = {title}
 |P主 = [[{up}]]
 |bb_id = av{aid}
@@ -91,7 +92,7 @@ pageFormat = """
 }}}}
 
 == 简介 ==
-《'''{title}'''》是[[{up}]]于{date}投稿至[[bilibili]]的[[Vocaloid]]中文{origin}歌曲，由{singers}演唱{series}{album}。截至现在已有{{{{bilibiliCount|id={aid}}}}}次观看，{{{{bilibiliCount|id={aid}|type=4}}}}人收藏。
+《'''{title}'''》是[[{up}]]于{date}投稿至[[bilibili]]的[[Vocaloid]]中文{origin}歌曲，由{singers2}演唱{series}{album}。截至现在已有{{{{bilibiliCount|id={aid}}}}}次观看，{{{{bilibiliCount|id={aid}|type=4}}}}人收藏。
 
 == 歌曲 ==
 {{{{BilibiliVideo|id={aid}}}}}
@@ -100,6 +101,8 @@ pageFormat = """
 {staff}
 <poem>
 </poem>
+
+
 """
 
 class Intro:
@@ -152,7 +155,7 @@ class Intro:
     def pre(self, text):
         return re.sub(url, self.urlCollect,
                re.sub(aid, self.aidCollect,
-               re.sub("《.+?》", self.titleCollect,
+               re.sub("《.+?》|", self.titleCollect,
                unescape(text))))
         #pat = re.compile(self.divide['op'] + "(.|\s)+" +self.divide['ed'])
 
@@ -314,7 +317,7 @@ class Intro:
         if len(self.stfLi) == 0 :
             return "未提取到有效信息"
         para = """{{Vocaloid_Songbox_Introduction
-|bgcolor = 
+|lbgcolor = 
 |ltcolor = #FFFFFF"""
         index = 0
         while index < len(self.stfLi):
@@ -458,7 +461,7 @@ class Song:
         origin = ["'''翻唱'''", "原创"][self.titleInfo['origin']]
         album = self.titleInfo['album']
         if album != '':
-            extra = "\n，收录于专辑《" + album + '》'
+            extra = "\n|其他资料 = ，收录于专辑《" + album + '》'
             album = "，专辑《" + album + "》的收录曲"
         else:
             extra = ''
@@ -469,7 +472,8 @@ class Song:
                                  aid=self.aid,
                                  up=self.uploader,
                                  date=self.getFormatTime(1),
-                                 singers="[[" + "]]、[[".join(self.singers) + "]]",
+                                 singers1="[[" + "]]、[[".join(self.singers) + "]]",
+                                 singers2 = multiJoin(self.singers, "[[", ']]、[[', ']]与[[', ']]'),
                                  origin=origin,
                                  album=album,
                                  series=series,
@@ -483,17 +487,28 @@ class Song:
             text = text + ('\n[[分类:' + s + '歌曲]]')
             
         return text
+    
+def multiJoin(ls, start, join, last, close):
+    re = ""
+    if len(ls) == 1:
+        return start + ls[0] + close
+    if len(ls) > 1:
+        re = start + join.join(ls[:-1]) + last + ls[-1] + close
+    return re
 
 def getData(bbid):
+    url = "https://api.bilibili.com/x/web-interface/view?aid=" + bbid
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36'}
+    request = urllib.request.Request(url, headers=headers)
     try:
-        response = requests.get('https://api.bilibili.com/x/web-interface/view?aid=' + bbid)
+        response = urllib.request.urlopen(request)
     except:
         return '{"code":-1,"message":"网络异常，请重试。","data":{"title":"", "desc":""}}'
-    return response.text    
+    return response.read().decode('utf-8')    
 
 if __name__=="__main__":
     print ("""VOCALOID™ of Chinese Moegirlpedia™ Editor Plus (Beta 1.0)
-Pover by Transentropy©
+Power by Transentropy©
 GET UPDATED: github.com/transentropy/VCEP\n""")
     
     while (1):
@@ -531,4 +546,4 @@ GET UPDATED: github.com/transentropy/VCEP\n""")
         file.flush()
         
     file.close()
-    
+   
